@@ -1,13 +1,13 @@
 # agentcat/api
 
-Generated HTTP client for the [AgentCat](https://agentcat.com) API.
+Typed request models for the [AgentCat](https://agentcat.com) public API.
 
 ## You probably want `agentcat/sdk` instead
 
-This is the low-level generated transport, produced from the AgentCat OpenAPI
-specification and consumed by
-[`agentcat/sdk`](https://packagist.org/packages/agentcat/sdk), which is the
-supported integration surface for MCP server authors.
+This package holds the event publishing request and response models,
+generated from the AgentCat OpenAPI specification. It is consumed by
+[`agentcat/sdk`](https://packagist.org/packages/agentcat/sdk), the supported
+integration surface for MCP server authors, which sends the events.
 
 Do not edit this repository by hand. Every release is regenerated from the
 specification, which replaces all files except `LICENSE`.
@@ -18,31 +18,49 @@ specification, which replaces all files except `LICENSE`.
 composer require agentcat/api
 ```
 
-Requires PHP 8.1 or later with the `curl`, `json`, and `mbstring` extensions.
+Requires PHP 8.3 or later with the `json` extension. The package has no other
+dependencies.
 
 ## Usage
+
+The models are immutable value objects. `json_encode()` produces the body that
+`POST https://api.agentcat.com/v1/public/events/` accepts:
 
 ```php
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
 
-use AgentCat\Api\Api\EventsApi;
-use AgentCat\Api\Configuration;
 use AgentCat\Api\Model\PublishEventRequest;
 
-$config = Configuration::getDefaultConfiguration()
-    ->setApiKey('Authorization', 'YOUR_API_KEY')
-    ->setApiKeyPrefix('Authorization', 'Token');
+$event = new PublishEventRequest(
+    projectId: 'proj_...',
+    id: 'evt_...',
+    eventType: 'mcp:tools/call',
+    timestamp: new DateTimeImmutable(),
+    resourceName: 'get_weather',
+);
 
-$eventsApi = new EventsApi(null, $config);
-$eventsApi->publishEvent(new PublishEventRequest([
-    'project_id' => 'proj_...',
-    'event_type' => 'mcp:tools/call',
-]));
+$body = json_encode($event, JSON_THROW_ON_ERROR);
 ```
 
-Every endpoint and model is documented in [`docs/Api`](docs/Api) and
-[`docs/Model`](docs/Model).
+Call the constructors with named arguments: parameter order is not part of
+the API and can change between releases. The server drops events without
+`id`, `event_type` or `timestamp`, although the specification marks them
+optional.
+
+The encoding follows the API contract:
+
+- Empty free-form objects (`parameters`, `response`, `error`, `identify_data`,
+  `properties`) and `tags` encode as `{}`, never `[]`. This applies to the
+  top-level value only: pass `stdClass` for empty objects nested inside it.
+- `timestamp` encodes in UTC with milliseconds, for example
+  `2026-10-16T12:00:00.123Z`.
+- `session_id` is always sent; `null` asks the server to assign a session.
+- Other optional fields are omitted when unset.
+- `event_type` is an open string. `PublishEventRequest::EVENT_TYPE_KNOWN_VALUES`
+  lists the values in the specification.
+
+The publish endpoint takes no API key: `project_id` identifies the project.
 
 ## Other languages
 
