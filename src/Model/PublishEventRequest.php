@@ -39,6 +39,7 @@ final readonly class PublishEventRequest implements \JsonSerializable
         'mcp:tasks/list',
         'mcp:tasks/cancel',
         'agentcat:identify',
+        'agentcat:custom',
     ];
 
     public function __construct(
